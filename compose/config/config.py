@@ -76,6 +76,14 @@ SUPPORTED_FILENAMES = [
     'fig.yaml',
 ]
 
+DOCKER_VALID_URL_PREFIXES = (
+    'http://',
+    'https://',
+    'git://',
+    'github.com/',
+    'git@',
+)
+
 DEFAULT_OVERRIDE_FILENAME = 'docker-compose.override.yml'
 
 log = logging.getLogger(__name__)
@@ -510,15 +518,22 @@ def resolve_volume_path(volume, working_dir, service_name):
 def resolve_build_path(build_path, working_dir=None):
     if working_dir is None:
         raise Exception("No working_dir passed to resolve_build_path")
-    return expand_path(working_dir, build_path)
+    # return expand_path(working_dir, build_path)
+    if is_url(build_path):
+        return build_path
+    else:
+        return expand_path(working_dir, build_path)
 
 
 def validate_paths(service_dict):
     if 'build' in service_dict:
         build_path = service_dict['build']
-        if not os.path.exists(build_path) or not os.access(build_path, os.R_OK):
-            raise ConfigurationError("build path %s either does not exist or is not accessible." % build_path)
+        if (not os.path.exists(build_path) or not os.access(build_path, os.R_OK)) and not is_url(build_path):
+            raise ConfigurationError("build path %s either does not exist, is not accessible or is not a valid url." % build_path)
 
+def is_url(build_path):
+    return build_path.startswith(DOCKER_VALID_URL_PREFIXES)
+    
 
 def merge_path_mappings(base, override):
     d = dict_from_path_mappings(base)
